@@ -9,11 +9,12 @@
 #define MAX_LINHAS 30
 #define MAX_COLUNAS 60
 
-#define MAX_INIMIGOS 4
+#define MAX_INIMIGOS 5
 
 char mapa[MAX_LINHAS][MAX_COLUNAS];
-int framesParaMoverMonstro = 0;
-int intervaloMovimentoMonstro = 10;  // Ajuste esse valor para controlar a velocidade dos monstros
+int framesParaMoverInimigo = 0;
+int intervaloMovimentoInimigo = 10;  // Ajuste esse valor para controlar a velocidade dos monstros
+int recursos_jogador = 0;            // Quantidade de recursos que o jogador possui
 
 typedef struct {
     int x;
@@ -67,6 +68,7 @@ void lerMapa(const char *nomeArquivo, Jogador *jogador, Inimigo *inimigos, int m
     int linha = 0;
     int coluna = 0;
     int inimigoIndex = 0;
+
     while (linha < MAX_LINHAS && coluna < MAX_COLUNAS) {
         int c = fgetc(file);
 
@@ -131,26 +133,26 @@ void deslocamentoJogador(Jogador *jogador){
     jogador->dy = 0; // Reseta o deslocamento vertical
 
     if (IsKeyPressed(KEY_RIGHT)){
-        jogador->dx = LADO;
+        jogador->dx = 1;
     }
 
     if (IsKeyPressed(KEY_LEFT)){
-        jogador->dx = -LADO;
+        jogador->dx = -1;
     }
 
     if (IsKeyPressed(KEY_UP)){
-        jogador->dy = -LADO;
+        jogador->dy = -1;
     }
 
     if (IsKeyPressed(KEY_DOWN)){
-        jogador->dy = LADO;
+        jogador->dy = 1;
     }
 }
 
 // Função para mover o Jogador
 int moveJogador(Jogador *jogador, int largura, int altura) {
-    int novoX = jogador->x + jogador->dx;
-    int novoY = jogador->y + jogador->dy;
+    int novoX = jogador->x + jogador->dx*LADO;
+    int novoY = jogador->y + jogador->dy*LADO;
 
     // Verifica se a nova posição não é uma parede
     if (mapa[novoY / LADO][novoX / LADO] == 'W') {
@@ -166,13 +168,27 @@ int moveJogador(Jogador *jogador, int largura, int altura) {
     return 0; // Movimento falhou
 }
 
+
+//Função para pegar recursos
+void pegar_recurso(Jogador *jogador) {
+    //Verifica a posição do recurso no mapa
+    int col = jogador->x / LADO;
+    int lin = jogador->y / LADO;
+
+    //Verifica se a posição contém um recurso
+    if (mapa[lin][col] == 'R') {
+        recursos_jogador++;  // Incrementa o contador de recursos do jogador
+        mapa[lin][col] = ' '; // Remove o recurso do mapa
+    }
+}
+
 int main() {
     // Inicializa a janela
     InitWindow(LARGURA, ALTURA, "Jogo Tower Defense");
 
     // Cria os inimigos
     Inimigo inimigos[MAX_INIMIGOS]; //cria varios inimigos com as caracteristicas da struct Inimigo
-    Jogador jogador = {0}; // Inicializa o jogador
+    Jogador jogador = {0}; // Inicializa o jogador com zero, garantindo que x, y, dx, e dy comecem com valores conhecidos.
 
     // Ler o mapa do arquivo e inicializar posições do jogador e dos inimigos
     lerMapa("mapa1.txt", &jogador, inimigos, MAX_INIMIGOS);
@@ -184,16 +200,17 @@ int main() {
     while (!WindowShouldClose()) {
         deslocamentoJogador(&jogador);
         moveJogador(&jogador, LARGURA, ALTURA);
+        pegar_recurso(&jogador); // Verifica se o jogador pega um recurso
 
-        framesParaMoverMonstro++;
-        if (framesParaMoverMonstro >= intervaloMovimentoMonstro) {
+        framesParaMoverInimigo++;
+        if (framesParaMoverInimigo >= intervaloMovimentoInimigo) {
             for (int i = 0; i < MAX_INIMIGOS; i++) {
                 if (!moveInimigo(&inimigos[i], LARGURA, ALTURA)) {
                     redefineDeslocamento(&inimigos[i]); //se o movimento falhar, redefine o movimento
                 }
             }
 
-            framesParaMoverMonstro = 0;  // Reinicia o contador de frames
+            framesParaMoverInimigo = 0;  // Reinicia o contador de frames
         }
 
         BeginDrawing();
@@ -205,6 +222,9 @@ int main() {
         for (int i = 0; i < MAX_INIMIGOS; i++) {
             DrawRectangle(inimigos[i].x, inimigos[i].y, LADO, LADO, BLUE);
         }
+
+        //Mostra a quantidade de recursos na tela
+        DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, BLACK);
 
         EndDrawing();
     }
