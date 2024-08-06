@@ -15,6 +15,7 @@ char mapa[MAX_LINHAS][MAX_COLUNAS];
 int framesParaMoverInimigo = 0;
 int intervaloMovimentoInimigo = 10;  // Ajuste esse valor para controlar a velocidade dos monstros
 int recursos_jogador = 0;            // Quantidade de recursos que o jogador possui
+int vidas_jogador = 3;
 
 typedef struct {
     int x;
@@ -182,6 +183,17 @@ void pegar_recurso(Jogador *jogador) {
     }
 }
 
+
+// Função para perder vida
+void perde_vida(Jogador *jogador, Inimigo *inimigos, int maxInimigos) {
+    for (int i = 0; i < maxInimigos; i++) {
+        if (inimigos[i].x == jogador->x && inimigos[i].y == jogador->y) {
+            vidas_jogador--;
+            jogador->x=20;
+            jogador->y=20;
+        }
+    }
+}
 int main() {
     // Inicializa a janela
     InitWindow(LARGURA, ALTURA, "Jogo Tower Defense");
@@ -201,6 +213,7 @@ int main() {
         deslocamentoJogador(&jogador);
         moveJogador(&jogador, LARGURA, ALTURA);
         pegar_recurso(&jogador); // Verifica se o jogador pega um recurso
+        perde_vida(&jogador, inimigos, MAX_INIMIGOS); // Verifica se o jogador colide com um inimigo
 
         framesParaMoverInimigo++;
         if (framesParaMoverInimigo >= intervaloMovimentoInimigo) {
@@ -225,6 +238,7 @@ int main() {
 
         //Mostra a quantidade de recursos na tela
         DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, BLACK);
+        DrawText(TextFormat("Vidas: %d", vidas_jogador), 10, 40, 20, BLACK); // Ajustei a posição do texto
 
         EndDrawing();
     }
