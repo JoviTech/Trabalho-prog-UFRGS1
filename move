@@ -8,67 +8,91 @@
 #define LADO 20
 #define MAX_LINHAS 30
 #define MAX_COLUNAS 60
-#define MAX_INIMIGOS 4
+
+#define MAX_INIMIGOS 5
 
 char mapa[MAX_LINHAS][MAX_COLUNAS];
-int frames_para_mover_inimigo = 0;
-int intervalo_movimento_inimigo = 4;   //Controla a velocidade dos monstros
-int recursos_jogador = 0;              //Quantos recursos o jogador tem, (inicia em 0)
-int vidas_jogador = 3;                 //Quantas vidas o jogador começa
+int framesParaMoverInimigo = 0;
+int intervaloMovimentoInimigo = 40;  // Ajuste esse valor para controlar a velocidade dos monstros
+int recursos_jogador = 0;            // Quantidade de recursos que o jogador possui
+int vidas_jogador = 3;
 int vida_base = 3;                     //Vida inicial da Base
-int torres[MAX_LINHAS][MAX_COLUNAS] = {0}; //Matriz que apresenta as torres
 
-//Struct para o jogador e o inimigo
 typedef struct {
     int x;
     int y;
     int dx;
     int dy;
-} Entidade;
+    int visitado[MAX_LINHAS][MAX_COLUNAS]; // Matriz para armazenar as posições visitadas
+} Inimigo;
 
-typedef Entidade Jogador;
-typedef Entidade Inimigo;
+typedef struct {
+    int x;
+    int y;
+    int dx;
+    int dy;
+} Jogador;
 
-//Função para redefinir o deslocamento da entidade
-void redefine_deslocamento_entidade(Entidade *entidade) {
-    do {
-        entidade->dx = (GetRandomValue(-1, 1)) * LADO; //-LADO, 0 ou LADO
-        entidade->dy = (GetRandomValue(-1, 1)) * LADO; //-LADO, 0 ou LADO
-    } while (entidade->dx == 0 && entidade->dy == 0); //Garante que pelo menos um deslocamento é não-nulo
-}
+// Função para redefinir o deslocamento do inimigo
+void redefineDeslocamento(Inimigo *inimigo) {
+    inimigo->dx = 0;
+    inimigo->dy = 0;
 
-//Função para mover a entidade (jogador ou inimigo)
-int move_entidade(Entidade *entidade, int largura, int altura) {
-    int novo_x = entidade->x + entidade->dx;
-    int novo_y = entidade->y + entidade->dy;
-
-    //Vê se a nova posição não é uma parede
-    if (mapa[novo_y / LADO][novo_x / LADO] == 'W') {
-        return 0; // Movimento para uma parede
+    // Tenta mover para a direita
+    if ((mapa[inimigo->y / LADO][(inimigo->x / LADO) + 1] == 'C' || mapa[inimigo->y / LADO][(inimigo->x / LADO) + 1] == 'M' || mapa[inimigo->y / LADO][(inimigo->x / LADO) + 1] == 'S') &&
+        inimigo->visitado[inimigo->y / LADO][(inimigo->x / LADO) + 1] == 0) {
+        inimigo->dx = 1;
+        return;
     }
 
-    //Vê se a nova posição está dentro dos limites
-    if (novo_x >= 0 && novo_x < largura && novo_y >= 0 && novo_y < altura) {
-        entidade->x = novo_x;
-        entidade->y = novo_y;
-        return 1; //Movimento deu certo
+    // Tenta mover para a esquerda
+    if ((mapa[inimigo->y / LADO][(inimigo->x / LADO) - 1] == 'C' || mapa[inimigo->y / LADO][(inimigo->x / LADO) - 1] == 'M' || mapa[inimigo->y / LADO][(inimigo->x / LADO) - 1] == 'S') &&
+        inimigo->visitado[inimigo->y / LADO][(inimigo->x / LADO) - 1] == 0) {
+        inimigo->dx = -1;
+        return;
     }
-    return 0; //Movimento deu errado
+
+    // Tenta mover para baixo
+    if ((mapa[(inimigo->y / LADO) + 1][inimigo->x / LADO] == 'C' || mapa[(inimigo->y / LADO) + 1][inimigo->x / LADO] == 'M' || mapa[(inimigo->y / LADO) + 1][inimigo->x / LADO] == 'S') &&
+        inimigo->visitado[(inimigo->y / LADO) + 1][inimigo->x / LADO] == 0) {
+        inimigo->dy = 1;
+        return;
+    }
+
+    // Tenta mover para cima
+    if ((mapa[(inimigo->y / LADO) - 1][inimigo->x / LADO] == 'C' || mapa[(inimigo->y / LADO) - 1][inimigo->x / LADO] == 'M' || mapa[(inimigo->y / LADO) - 1][inimigo->x / LADO] == 'S') &&
+        inimigo->visitado[(inimigo->y / LADO) - 1][inimigo->x / LADO] == 0) {
+        inimigo->dy = -1;
+        return;
+    }
 }
 
-//Função para ler o mapa e inicializar posições do jogador e inimigos
-void ler_mapa(const char *nome_arquivo, Jogador *jogador, Inimigo *inimigos, int max_inimigos) {
-    FILE *file = fopen(nome_arquivo, "r");
+// Função para mover o inimigo ao longo do caminho
+void moveInimigo(Inimigo *inimigo, int largura, int altura) {
+    int novoX = inimigo->x + inimigo->dx * LADO;
+    int novoY = inimigo->y + inimigo->dy * LADO;
+
+    // Verifica se a nova posição está dentro dos limites
+    if (novoX >= 0 && novoX < largura && novoY >= 0 && novoY < altura) {
+        inimigo->visitado[inimigo->y / LADO][inimigo->x / LADO] = 1; // Marca a posição atual como visitada
+        inimigo->x = novoX;
+        inimigo->y = novoY;
+    }
+}
+
+// Função para ler o mapa e inicializar posições do jogador e inimigos
+void lerMapa(const char *nomeArquivo, Jogador *jogador, Inimigo *inimigos, int maxInimigos) {
+    FILE *file = fopen(nomeArquivo, "r");
     if (file == NULL) {
-        printf("Erro ao abrir o arquivo %s\n", nome_arquivo);
+        printf("Erro ao abrir o arquivo %s\n", nomeArquivo);
         exit(1);
     }
 
     int linha = 0;
     int coluna = 0;
-    int inimigo_index = 0;
+    int inimigoIndex = 0;
 
-    while (linha<MAX_LINHAS && coluna<MAX_COLUNAS) {
+    while (linha < MAX_LINHAS && coluna < MAX_COLUNAS) {
         int c = fgetc(file);
 
         if (c == EOF) {
@@ -77,17 +101,18 @@ void ler_mapa(const char *nome_arquivo, Jogador *jogador, Inimigo *inimigos, int
         if (c == '\n') {
             linha++;
             coluna = 0;
-        } else {
+        }
+        else {
             mapa[linha][coluna] = c;
             if (c == 'J') {
                 jogador->x = coluna * LADO;
                 jogador->y = linha * LADO;
             }
-            if (c == 'M' && inimigo_index<max_inimigos) {
-                inimigos[inimigo_index].x = coluna * LADO;
-                inimigos[inimigo_index].y = linha * LADO;
-                redefine_deslocamento_entidade(&inimigos[inimigo_index]); //Define o deslocamento inicial do inimigo
-                inimigo_index++;
+            if (c == 'M' && inimigoIndex < maxInimigos) {
+                inimigos[inimigoIndex].x = coluna * LADO;
+                inimigos[inimigoIndex].y = linha * LADO;
+                redefineDeslocamento(&inimigos[inimigoIndex]); // Define o deslocamento inicial do inimigo
+                inimigoIndex++;
             }
             coluna++;
         }
@@ -97,7 +122,7 @@ void ler_mapa(const char *nome_arquivo, Jogador *jogador, Inimigo *inimigos, int
 }
 
 //Função para "desenhar" o mapa
-void desenhar_mapa() {
+void desenharMapa() {
     for (int i = 0;i<MAX_LINHAS;i++) {
         for (int j = 0;j<MAX_COLUNAS;j++) {
             Color cor;
@@ -131,67 +156,73 @@ void desenhar_mapa() {
     }
 }
 
-//Função para definir o deslocamento do jogador baseado nas teclas pressionadas
-void define_deslocamento_jogador(Jogador *jogador) {
-    jogador->dx = 0; //Reseta o deslocamento horizontal
-    jogador->dy = 0; //Reseta o deslocamento vertical
 
-    if (IsKeyPressed(KEY_RIGHT)) {
+// Função para redefinir o deslocamento do Jogador
+void deslocamentoJogador(Jogador *jogador){
+    jogador->dx = 0; // Reseta o deslocamento horizontal
+    jogador->dy = 0; // Reseta o deslocamento vertical
+
+    if (IsKeyPressed(KEY_RIGHT)){
         jogador->dx = 1;
     }
-    if (IsKeyPressed(KEY_LEFT)) {
+
+    if (IsKeyPressed(KEY_LEFT)){
         jogador->dx = -1;
     }
-    if (IsKeyPressed(KEY_UP)) {
+
+    if (IsKeyPressed(KEY_UP)){
         jogador->dy = -1;
     }
-    if (IsKeyPressed(KEY_DOWN)) {
+
+    if (IsKeyPressed(KEY_DOWN)){
         jogador->dy = 1;
     }
 }
 
-//Função para mover o jogador
-int move_jogador(Jogador *jogador, int largura, int altura) {
-    int novo_x = jogador->x + jogador->dx * LADO;
-    int novo_y = jogador->y + jogador->dy * LADO;
+// Função para mover o Jogador
+int moveJogador(Jogador *jogador, int largura, int altura) {
+    int novoX = jogador->x + jogador->dx*LADO;
+    int novoY = jogador->y + jogador->dy*LADO;
 
-    //Vê se a nova posição não é uma parede
-    if (mapa[novo_y / LADO][novo_x / LADO] == 'W') {
-        return 0; //Movimento para uma parede
+    // Verifica se a nova posição não é uma parede
+    if (mapa[novoY / LADO][novoX / LADO] == 'W') {
+        return 0; // Movimento para uma parede
     }
 
-    //Vê se a nova posição está dentro dos limites
-    if (novo_x >= 0 && novo_x < largura && novo_y >= 0 && novo_y < altura) {
-        jogador->x = novo_x;
-        jogador->y = novo_y;
-        return 1; //Movimento deu certo
+    // Verifica se a nova posição está dentro dos limites
+    if (novoX >= 0 && novoX < largura && novoY >= 0 && novoY < altura) {
+        jogador->x = novoX;
+        jogador->y = novoY;
+        return 1; // Movimento bem-sucedido
     }
-    return 0; //Movimento deu errado
+    return 0; // Movimento falhou
 }
+
 
 //Função para pegar recursos
 void pegar_recurso(Jogador *jogador) {
-    //Vê a posição do recurso no mapa
+    //Verifica a posição do recurso no mapa
     int col = jogador->x / LADO;
     int lin = jogador->y / LADO;
 
-    //Vê se a posição contém um recurso
+    //Verifica se a posição contém um recurso
     if (mapa[lin][col] == 'R') {
-        recursos_jogador++;  //Aumenta o contador de recursos
-        mapa[lin][col] = ' '; //Remove o recurso do mapa
+        recursos_jogador++;  // Incrementa o contador de recursos do jogador
+        mapa[lin][col] = ' '; // Remove o recurso do mapa
     }
 }
 
-//Função para perder vida ao colidir com inimigos
-void perde_vida(Jogador *jogador, Inimigo *inimigos, int max_inimigos) {
-    for (int i = 0; i < max_inimigos; i++) {
+
+//Função para perder vida
+void perde_vida(Jogador *jogador, Inimigo *inimigos, int maxInimigos) {
+    for (int i = 0; i < maxInimigos; i++) {
         if (inimigos[i].x == jogador->x && inimigos[i].y == jogador->y) {
             vidas_jogador--;
-            jogador->x = 20;
-            jogador->y = 20;
+            break; // Sai do loop assim que a colisão é detectada
         }
     }
 }
+
 
 //Função para ver se um inimigo "colidiu" com a base
 void verificar_colisao_base(Inimigo *inimigos, int max_inimigos) {
@@ -233,18 +264,6 @@ void desenhar_base() {
                 DrawRectangle(j * LADO, i * LADO, LADO, LADO, cor);
             }
         }
-    }
-}
-
-//Função para construir uma torre
-void construir_torre(Jogador *jogador) {
-    int col = jogador->x / LADO;
-    int lin = jogador->y / LADO;
-
-    //Vê se a posição é válida para construir uma torre
-    if (mapa[lin][col] == 'T' && recursos_jogador >= 2) {
-        torres[lin][col] = 1; //Marca a posição como ocupada por uma torre
-        recursos_jogador -= 2; //Consome 2 recursos para construir a torre
     }
 }
 
@@ -309,61 +328,84 @@ void teletransportar_jogador(Jogador *jogador, int largura, int altura) {
         jogador->y = destinoY;
     }
 }
+
 int main() {
-    //Janela
+    // Inicializa a janela
     InitWindow(LARGURA, ALTURA, "Jogo Tower Defense");
 
-    //Cria os inimigos
-    Inimigo inimigos[MAX_INIMIGOS]; //Cria vários inimigos com as características da struct Inimigo
-    Jogador jogador = {0}; //Inicializa o jogador com zero, garantindo que x, y,e os deslocamentos comecem com valores conhecidos
+    // Cria os inimigos
+    Inimigo inimigos[MAX_INIMIGOS]; //cria varios inimigos com as caracteristicas da struct Inimigo
+    Jogador jogador = {0}; // Inicializa o jogador com zero, garantindo que x, y, dx, e dy comecem com valores conhecidos.
 
-    //Ler o mapa do arquivo e inicializar posições do jogador e dos inimigos
-    ler_mapa("mapa1.txt", &jogador, inimigos, MAX_INIMIGOS);
+    // Inicializa a matriz de visitados para cada inimigo
+    for (int i = 0; i < MAX_INIMIGOS; i++) {
+        for (int lin = 0; lin < MAX_LINHAS; lin++) {
+            for (int col = 0; col < MAX_COLUNAS; col++) {
+                inimigos[i].visitado[lin][col] = 0;
+            }
+        }
+    }
+
+    // Ler o mapa do arquivo e inicializar posições do jogador e dos inimigos
+    lerMapa("mapa1.txt", &jogador, inimigos, MAX_INIMIGOS);
 
     SetTargetFPS(60);
 
-    srand(time(NULL)); //Garante que a seed seja diferente a cada execução do programa
+    srand(time(NULL)); //garante que a semente seja diferente a cada execução do programa
+
+    bool gameOver = false;
+    double gameOverTime = 0.0;
 
     while (!WindowShouldClose()) {
-        define_deslocamento_jogador(&jogador);
-        move_jogador(&jogador, LARGURA, ALTURA);
-        pegar_recurso(&jogador); //Vê se o jogador pega um recurso
-        perde_vida(&jogador, inimigos, MAX_INIMIGOS); //Vê se o jogador colide com um inimigo
+        if (!gameOver) {
+            deslocamentoJogador(&jogador);
+            moveJogador(&jogador, LARGURA, ALTURA);
+            pegar_recurso(&jogador); // Verifica se o jogador pega um recurso
+            perde_vida(&jogador, inimigos, MAX_INIMIGOS);
+            verificar_colisao_base(inimigos, MAX_INIMIGOS);//Verifica a colisão dos inimigos com a base
 
-        //Verifica a colisão dos inimigos com a base
-        verificar_colisao_base(inimigos, MAX_INIMIGOS);
-
-        frames_para_mover_inimigo++;
-        if (frames_para_mover_inimigo >= intervalo_movimento_inimigo) {
-            for (int i = 0;i<MAX_INIMIGOS;i++) {
-                if (!move_entidade(&inimigos[i], LARGURA, ALTURA)) {
-                    redefine_deslocamento_entidade(&inimigos[i]); //Se o movimento falhar, redefine o movimento
-                }
+            // Verifica se o jogador perdeu todas as vidas
+            if (vidas_jogador <= 0) {
+                gameOver = true;
+                gameOverTime = GetTime();
             }
-            frames_para_mover_inimigo = 0; //Reinicia o contador de frames
-        }
-        if (IsKeyPressed(KEY_F)) {
-        construir_torre(&jogador); //Permite construir uma torre ao pressionar 'F'
-}
-        //Define a tecla de teletransporte pelo buraco 'T'
 
-            teletransportar_jogador(&jogador,LARGURA,ALTURA);
+            framesParaMoverInimigo++;
+            if (framesParaMoverInimigo >= intervaloMovimentoInimigo) {
+                for (int i = 0; i < MAX_INIMIGOS; i++) {
+                    moveInimigo(&inimigos[i], LARGURA, ALTURA);
+                    redefineDeslocamento(&inimigos[i]);
+                }
+
+                framesParaMoverInimigo = 0;  // Reinicia o contador de frames
+            }
+        } else {
+            // Verifica se 3 segundos se passaram desde o "Game Over"
+            if (GetTime() - gameOverTime >= 3.0) {
+                break; // Sai do loop principal para fechar o jogo
+            }
+        }
+
+        teletransportar_jogador(&jogador,LARGURA,ALTURA);
 
         BeginDrawing();
         ClearBackground(GREEN);
 
-        //"Desenhar" o mapa
-        desenhar_mapa();
-        desenhar_base(); //"Desenhar" a base com a vida restante
+        // Desenhar o mapa
+        desenharMapa();
         DrawRectangle(jogador.x, jogador.y, LADO, LADO, WHITE);
-        for (int i = 0;i<MAX_INIMIGOS;i++) {
-            DrawRectangle(inimigos[i].x, inimigos[i].y, LADO, LADO, PINK);
+        for (int i = 0; i < MAX_INIMIGOS; i++) {
+            DrawRectangle(inimigos[i].x, inimigos[i].y, LADO, LADO, BLUE);
         }
 
-        //Canto superior esquerdo da tela
-        DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, WHITE); //Mostra a quantidade de recursos que o jogador pegou
-        DrawText(TextFormat("Vidas: %d", vidas_jogador), 10, 40, 20, WHITE); //Mostra as vidas restantes do jogador
-        DrawText(TextFormat("Vida da Base: %d", vida_base), 10, 70, 20, WHITE); //Mostra a vida da base
+        // Mostra a quantidade de recursos e vidas na tela
+        DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, BLACK);
+        DrawText(TextFormat("Vidas: %d", vidas_jogador), 10, 40, 20, BLACK); // Ajustei a posição do texto
+
+        // Se o jogo acabou, mostra a mensagem de "Game Over"
+        if (gameOver) {
+            DrawText("Game Over", LARGURA / 2 - MeasureText("Game Over", 50) / 2, ALTURA / 2 - 50, 50, RED);
+        }
 
         EndDrawing();
     }
