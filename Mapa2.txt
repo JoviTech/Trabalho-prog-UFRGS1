@@ -1,0 +1,30 @@
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+W         H     W      H                   H              W
+W         W     W      W        WWWWWWWWWWWW              W
+W   WWWWWWW     WWWWWWWW        WCCCCCCCCCCW       J      W
+W   W     W            W   R    WCWWWWWWWWCW              W
+W   W  R  W            W        WCW      WCWWWWWWWHWWWWWWWW
+W         W            W        WCW      WCCCCCCCMCMCMCMCMW
+WHWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWCW      WWWWWWWWWHWWWWWWWW
+WCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCW                       W
+WCWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW                       W
+WCW                W                                      W
+WCW                W                                      W
+WCW                W   WWWWWWWWW           WWWWWWWWWWWWWWWW
+WCW      R         H   H       W           H              W
+WCW                W   W       WWWWWWWWWWWWW              W
+WCW         WWWWWWWW   W    BCCCCCCCCCCCCCCW      R       W
+WCW         W          W       WWWWWWWWWWWCW              W
+WCW         W          W       W         WCW              W
+WCW         W          WWWWWWWWW         WCW              W
+WCW         W                            WCW              W
+WCW         W                            WCW              W
+WCW         W                            HCH              W
+WCWWWWHWWWWWWWWWW                        WCW              W
+WCCCCCCCCCCCCCCCW                        WCW              W
+WHWWWWHWWWWWWWWCWWWWWWWWWWWWWWWWWWWWWWWWWWCW              W
+W             WCCCCCCCCCCCCCCCCCCCCCCCCCCCCW              W
+W             WWWWWWWWWWWWWWWWWWWWWWWWWWWWWW              W
+W      R      W                            W              W
+W             W                            W              W
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
