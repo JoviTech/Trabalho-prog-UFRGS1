@@ -10,23 +10,12 @@
 #define MAX_COLUNAS 60
 
 
-
-// Carregar o arquivo de áudio
-Music soundtrack;
-Music dropItens;
-Music gameover;
-Music pegarItens;
-Music monstroMorre;
-Music personagemMorre;
-Music win;
-Music carregamento;
-
 char mapa[MAX_LINHAS][MAX_COLUNAS];
 int framesParaMoverInimigo = 0;
-int intervaloMovimentoInimigo = 40;  // Ajuste esse valor para controlar a velocidade dos monstros
+int intervaloMovimentoInimigo = 15;  // Ajuste esse valor para controlar a velocidade dos monstros
 int recursos_jogador = 0;            // Quantidade de recursos que o jogador possui
 int vidas_jogador = 1;
-int vida_base = 3;                     //Vida inicial da Base
+int vida_base = 3;   //Vida inicial da Base
 int numInimigos = 5; // Número atual de inimigos
 
 typedef struct {
@@ -35,6 +24,8 @@ typedef struct {
     int dx;
     int dy;
     int visitado[MAX_LINHAS][MAX_COLUNAS]; // Matriz para armazenar as posições visitadas
+    int x_inicial; // Posição inicial x
+    int y_inicial; // Posição inicial y
 } Inimigo;
 
 typedef struct {
@@ -42,6 +33,8 @@ typedef struct {
     int y;
     int dx;
     int dy;
+    int x_inicial; // Posição inicial x
+    int y_inicial; // Posição inicial y
 } Jogador;
 
 // Função para redefinir o deslocamento do inimigo
@@ -118,10 +111,15 @@ void lerMapa(const char *nomeArquivo, Jogador *jogador, Inimigo *inimigos, int m
             if (c == 'J') {
                 jogador->x = coluna * LADO;
                 jogador->y = linha * LADO;
+                jogador->x_inicial = jogador->x;
+                jogador->y_inicial = jogador->y;
+
             }
             if (c == 'M' && inimigoIndex < maxInimigos) {
                 inimigos[inimigoIndex].x = coluna * LADO;
                 inimigos[inimigoIndex].y = linha * LADO;
+                inimigos[inimigoIndex].x_inicial = inimigos[inimigoIndex].x;
+                inimigos[inimigoIndex].y_inicial = inimigos[inimigoIndex].y;
                 redefineDeslocamento(&inimigos[inimigoIndex]); // Define o deslocamento inicial do inimigo
                 inimigoIndex++;
             }
@@ -215,6 +213,9 @@ int moveJogador(Jogador *jogador, int largura, int altura) {
 
 //Função para pegar recursos
 void pegar_recurso(Jogador *jogador) {
+
+    Sound pegarItens = LoadSound("pegaritens.mp3");
+
     //Verifica a posição do recurso no mapa
     int col = jogador->x / LADO;
     int lin = jogador->y / LADO;
@@ -223,21 +224,25 @@ void pegar_recurso(Jogador *jogador) {
     if (mapa[lin][col] == 'R') {
         recursos_jogador++;  // Incrementa o contador de recursos do jogador
         mapa[lin][col] = ' '; // Remove o recurso do mapa
+        PlaySound(pegarItens);
     }
 }
 
 void largar_recurso(Jogador *jogador){
+
+    Sound dropItens = LoadSound("dropitens.mp3");
+
     //Verifica a posição do recurso no mapa
     int col = jogador->x / LADO;
     int lin = jogador->y / LADO;
 
     if(recursos_jogador > 0){
         mapa[lin][col] = 'P'; // Larga o recurso do mapa
+        PlaySound(dropItens);
         recursos_jogador--;  // Decrementa o contador de recursos do jogador
     }
 
 }
-
 
 //Função para perder vida
 void perde_vida(Jogador *jogador, Inimigo *inimigos, int maxInimigos) {
@@ -248,33 +253,6 @@ void perde_vida(Jogador *jogador, Inimigo *inimigos, int maxInimigos) {
         }
     }
 }
-
-
-//Função para ver se um inimigo "colidiu" com a base
-void verificar_colisao_base(Inimigo *inimigos, int max_inimigos) {
-    for (int i = 0;i<max_inimigos;i++) {
-        int col_inimigo = inimigos[i].x / LADO;
-        int lin_inimigo = inimigos[i].y / LADO;
-
-        for (int i = 0; i < MAX_LINHAS; i++) {
-            for (int j = 0; j < MAX_COLUNAS; j++) {
-                if (mapa[i][j] == 'S') {
-                    int col_base = j;
-                    int lin_base = i;
-
-                    if (col_inimigo == col_base && lin_inimigo == lin_base) {
-                        vida_base--; //Reduz a vida da base
-                        if (vida_base <= 0) {
-                            vida_base = 0;
-                            //Adicione a lógica para quando a base perder toda a vida (fim de jogo)
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 //Função para teletransportar o jogador entre buracos
 void teletransportar_jogador(Jogador *jogador, int largura, int altura) {
@@ -338,7 +316,10 @@ void teletransportar_jogador(Jogador *jogador, int largura, int altura) {
     }
 }
 
-void eliminarInimigo(Inimigo *inimigos, int *numInimigos, char mapa[MAX_LINHAS][MAX_COLUNAS]) {
+void eliminarInimigo(Inimigo *inimigos, int *vidaBase, int *numInimigos, char mapa[MAX_LINHAS][MAX_COLUNAS]) {
+
+    Sound monstroMorre = LoadSound("monstromorrendo.mp3");
+
     for (int i = 0; i < *numInimigos; i++) {
         int col_inimigo = inimigos[i].x / LADO;
         int lin_inimigo = inimigos[i].y / LADO;
@@ -352,16 +333,155 @@ void eliminarInimigo(Inimigo *inimigos, int *numInimigos, char mapa[MAX_LINHAS][
             for (int j = i; j < *numInimigos - 1; j++) {
                 inimigos[j] = inimigos[j + 1];
             }
-
             (*numInimigos)--; // Reduz o número total de inimigos
             i--; // Ajusta o índice para a próxima iteração após a remoção
+            PlaySound(monstroMorre);
+        }
+        // Verifica colisão do inimigo com a base
+        if (mapa[lin_inimigo][col_inimigo] == 'S') {
+            (*vidaBase)--; //colocar entre parenteses para garantir que o endereço apontado seja decrementado e não a variavel vidaBase.
+            // Remove o inimigo da lista movendo o último inimigo para a posição do inimigo removido
+            for (int j = i; j < *numInimigos - 1; j++) {
+                inimigos[j] = inimigos[j + 1];
+            }
+            (*numInimigos)--; // Reduz o número total de inimigos
+            i--; // Ajusta o índice para a próxima iteração após a remoção
+            PlaySound(monstroMorre);
         }
     }
-}
-
-void loadSounds(){
 
 }
+
+
+void salvarJogo(Jogador *jogador, Inimigo *inimigos, int maxInimigos, int recursos)
+{
+    FILE *arquivo = fopen("JogoSalvo.bin", "wb");
+    if (arquivo == NULL)
+    {
+        printf("Erro ao abrir o arquivo para salvar!\n");
+        return;
+    }
+
+    // Salvar dados do jogador
+    fwrite(jogador, sizeof(Jogador), 1, arquivo);
+
+    // Salvar dados dos inimigos
+    for (int i = 0; i < maxInimigos; i++)
+    {
+        fwrite(&inimigos[i], sizeof(Inimigo), 1, arquivo);
+    }
+
+    // Salvar quantidade de recursos
+    fwrite(&recursos, sizeof(int), 1, arquivo);
+
+    fclose(arquivo);
+    printf("Jogo salvo com sucesso!\n");
+}
+
+// Função para carregar o estado do jogo
+void carregarJogo(Jogador *jogador, Inimigo *inimigos, int maxInimigos, int *recursos)
+{
+    FILE *arquivo = fopen("JogoSalvo.bin", "rb");
+    if (arquivo == NULL)
+    {
+        printf("Erro ao abrir o arquivo para carregar!\n");
+        return;
+    }
+
+    // Carregar dados do jogador
+    fread(jogador, sizeof(Jogador), 1, arquivo);
+
+    // Carregar dados dos inimigos
+    for (int i = 0; i < maxInimigos; i++)
+    {
+        fread(&inimigos[i], sizeof(Inimigo), 1, arquivo);
+    }
+
+    // Carregar quantidade de recursos
+    fread(recursos, sizeof(int), 1, arquivo);
+
+    fclose(arquivo);
+    printf("Jogo carregado com sucesso!\n");
+}
+
+int MenuPrincipal(Inimigo *inimigos, int maxInimigos, Jogador *jogador, Jogador *jogadorsalvo, int *recursos)
+{
+    int continuar = 0;
+    bool paused = true;
+    while (paused && continuar != 1)
+    {
+        if (IsKeyPressed(KEY_N))
+        {
+            continuar = 1;
+            lerMapa("Mapa4.txt", jogador, inimigos, numInimigos);
+
+        }
+        if (IsKeyPressed(KEY_C))
+        {
+            lerMapa("Mapa4.txt", jogador, inimigos, numInimigos);
+            carregarJogo(jogador, inimigos, maxInimigos, &recursos_jogador);
+            continuar = 1;
+            paused=false;
+        }
+        if (IsKeyPressed(KEY_Q))
+        {
+            CloseWindow();
+            exit(0); // Encerra o programa imediatamente
+        }
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText("Pressione N para Novo Jogo",LARGURA/2 - MeasureText("Pressione N para Novo Jogo",30)/2, 100, 30, RED);
+        DrawText("Pressione C para Carregar Jogo",LARGURA/2 - MeasureText("Pressione C para Carregar Jogo",30)/2, 240, 30, RED);
+        DrawText("Pressione Q para Sair Sem Salvar",LARGURA/2 - MeasureText("Pressione Q para Sair Sem Salvar",30)/2, 380, 30, RED);
+        EndDrawing();
+    }
+    return continuar;
+}
+
+int MenuPause(Inimigo *inimigos, int maxInimigos, Jogador *jogador, Jogador *jogadorsalvo, int *recursos)
+{
+    int continuar = 0;
+    bool paused=true;
+    while (paused&&continuar != 1)
+    {
+        if (IsKeyPressed(KEY_C))
+        {
+            continuar = 1;
+            paused=false;
+        }
+        if(IsKeyPressed(KEY_L))
+        {
+            carregarJogo(jogador, inimigos, maxInimigos, &recursos_jogador);
+            continuar = 1;
+            paused=false;
+        }
+        if (IsKeyPressed(KEY_S))
+        {
+            salvarJogo(jogador, inimigos, maxInimigos, recursos_jogador);
+        }
+        if (IsKeyPressed(KEY_V))
+        {
+            continuar = MenuPrincipal(inimigos, numInimigos, jogador,jogadorsalvo,&recursos_jogador);
+
+        }
+        if (IsKeyPressed(KEY_F))
+        {
+            CloseWindow();
+            exit(0); // Encerra o programa imediatamente
+        }
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+        DrawText("Pressione C para continuar",LARGURA/2 - MeasureText("Pressione C para continuar",30)/2, ALTURA / 5 - 30, 30, RED);
+        DrawText("Pressione L para carregar jogo",LARGURA/2 - MeasureText("Pressione L para carregar jogo",30)/2, (ALTURA / 5 - 30)*2, 30, RED);
+        DrawText("Pressione S para salvar jogo",LARGURA/2 - MeasureText("Pressione S para salvar jogo",30)/2, (ALTURA / 5 - 30)*3, 30, RED);
+        DrawText("Pressione V para voltar ao menu",LARGURA/2 - MeasureText("Pressione V para voltar ao menu",30)/2, (ALTURA / 5 - 30)*4, 30, RED);
+        DrawText("Pressione F para fechar o jogo",LARGURA/2 - MeasureText("Pressione F para fechar o jogo",30)/2, (ALTURA / 5 - 30)*5, 30, RED);
+        EndDrawing();
+    }
+    return continuar;
+}
+
+
 
 int main() {
     // Inicializa a janela
@@ -374,7 +494,7 @@ int main() {
     Music soundtrack = LoadMusicStream("soundtrack.mp3");
     Music gameover = LoadMusicStream("gameover.mp3");
     Music win = LoadMusicStream("win.mp3");
-    Music carregamento = LoadMusicStream("carregamento.mp3");
+
 
     // Carregar o arquivo de audio como sound para reproduzir apenas uma vez
     Sound pegarItens = LoadSound("pegaritens.mp3");
@@ -391,6 +511,9 @@ int main() {
     Inimigo inimigos[numInimigos]; //cria varios inimigos com as caracteristicas da struct Inimigo
     Jogador jogador = {0}; // Inicializa o jogador com zero, garantindo que x, y, dx, e dy comecem com valores conhecidos.
 
+    Inimigo inimigosalvo [numInimigos];
+    Jogador jogadorsalvo = {0};
+
     // Inicializa a matriz de visitados para cada inimigo
     for (int i = 0; i < numInimigos; i++) {
         for (int lin = 0; lin < MAX_LINHAS; lin++) {
@@ -400,87 +523,106 @@ int main() {
         }
     }
 
-    // Ler o mapa do arquivo e inicializar posições do jogador e dos inimigos
-    lerMapa("mapa1.txt", &jogador, inimigos, numInimigos);
-
     SetTargetFPS(60);
 
     bool gameOver = false;
     double gameOverTime = 0.0;
 
-    while (!WindowShouldClose()) {
-        // Atualiza o stream de música
-        UpdateMusicStream(soundtrack);
-        UpdateMusicStream(gameover);
+    int comparador = MenuPrincipal(inimigos, numInimigos, &jogador, &jogadorsalvo, &recursos_jogador);
 
+    if (comparador == 1)
+    {
+        while (!WindowShouldClose()) {
+            // Atualiza o stream de música
+            UpdateMusicStream(soundtrack);
+            UpdateMusicStream(gameover);
 
-        if (!gameOver) {
-            deslocamentoJogador(&jogador);
-            moveJogador(&jogador, LARGURA, ALTURA);
-            pegar_recurso(&jogador); // Verifica se o jogador pega um recurso
-            perde_vida(&jogador, inimigos, numInimigos);
-            verificar_colisao_base(inimigos, numInimigos);//Verifica a colisão dos inimigos com a base
+            if (!gameOver) {
 
-            // Verifica se o jogador perdeu todas as vidas
-            if (vidas_jogador <= 0) {
-                gameOver = true;
-                StopMusicStream(soundtrack);
-                PlayMusicStream(gameover);
-                gameOverTime = GetTime();
-            }
-
-            framesParaMoverInimigo++;
-            if (framesParaMoverInimigo >= intervaloMovimentoInimigo) {
-                for (int i = 0; i < numInimigos; i++) {
-                    moveInimigo(&inimigos[i], LARGURA, ALTURA);
-                    redefineDeslocamento(&inimigos[i]);
+                if (IsKeyPressed(KEY_P))
+                {
+                    MenuPause(inimigos, numInimigos, &jogador,&jogadorsalvo,&recursos_jogador);
                 }
 
-                framesParaMoverInimigo = 0;  // Reinicia o contador de frames
+                deslocamentoJogador(&jogador);
+                moveJogador(&jogador, LARGURA, ALTURA);
+                pegar_recurso(&jogador); // Verifica se o jogador pega um recurso
+                perde_vida(&jogador, inimigos, numInimigos);
+
+
+                // Verifica se o jogador perdeu todas as vidas
+                if(vidas_jogador <= 0) {
+                    gameOver = true;
+                    StopMusicStream(soundtrack);
+                    PlayMusicStream(gameover);
+                    gameOverTime = GetTime();
+                }
+                // Verifica se a base perdeu todas as vidas
+                if(vida_base <= 0){
+                    gameOver = true;
+                    StopMusicStream(soundtrack);
+                    PlayMusicStream(gameover);
+                    gameOverTime = GetTime();
+                }
+
+                framesParaMoverInimigo++;
+                if (framesParaMoverInimigo >= intervaloMovimentoInimigo) {
+                    for (int i = 0; i < numInimigos; i++) {
+                        moveInimigo(&inimigos[i], LARGURA, ALTURA);
+                        redefineDeslocamento(&inimigos[i]);
+                    }
+
+                    framesParaMoverInimigo = 0;  // Reinicia o contador de frames
+                }
+
+                // Eliminar inimigos que passaram por recursos
+                eliminarInimigo(inimigos, &vida_base, &numInimigos, mapa);
+
+            } else {
+                // Verifica se 3 segundos se passaram desde o "Game Over"
+                if (GetTime() - gameOverTime >= 3.0) {
+                    break; // Sai do loop principal para fechar o jogo
+                }
             }
 
-            // Eliminar inimigos que passaram por recursos
-            eliminarInimigo(inimigos, &numInimigos, mapa);
-
-        } else {
-            // Verifica se 3 segundos se passaram desde o "Game Over"
-            if (GetTime() - gameOverTime >= 3.0) {
-                break; // Sai do loop principal para fechar o jogo
+            if (IsKeyPressed(KEY_R)){
+                largar_recurso(&jogador);
+                // Reproduzir o efeito sonoro
             }
+
+
+            teletransportar_jogador(&jogador,LARGURA,ALTURA);
+
+            BeginDrawing();
+            ClearBackground(GREEN);
+
+            // Desenhar o mapa
+            desenharMapa();
+            DrawRectangle(jogador.x, jogador.y, LADO, LADO, WHITE);
+            for (int i = 0; i < numInimigos; i++) {
+                DrawRectangle(inimigos[i].x, inimigos[i].y, LADO, LADO, BLUE);
+            }
+
+            // Mostra a quantidade de recursos e vidas na tela
+            DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, RED);
+            DrawText(TextFormat("Vidas: %d", vidas_jogador), 10, 40, 20, RED);
+            DrawText(TextFormat("Base: %d", vida_base), 10, 70, 20, RED);
+
+            // Se o jogo acabou, mostra a mensagem de "Game Over"
+            if (gameOver) {
+                DrawText("Game Over", LARGURA / 2 - MeasureText("Game Over", 50) / 2, ALTURA / 2 - 50, 50, RED);
+            }
+
+            EndDrawing();
         }
-
-        if (IsKeyPressed(KEY_R)){
-            largar_recurso(&jogador);
-            // Reproduzir o efeito sonoro
-            PlaySound(dropItens);
-        }
-
-
-        teletransportar_jogador(&jogador,LARGURA,ALTURA);
-
-        BeginDrawing();
-        ClearBackground(GREEN);
-
-        // Desenhar o mapa
-        desenharMapa();
-        DrawRectangle(jogador.x, jogador.y, LADO, LADO, WHITE);
-        for (int i = 0; i < numInimigos; i++) {
-            DrawRectangle(inimigos[i].x, inimigos[i].y, LADO, LADO, BLUE);
-        }
-
-        // Mostra a quantidade de recursos e vidas na tela
-        DrawText(TextFormat("Recursos: %d", recursos_jogador), 10, 10, 20, RED);
-        DrawText(TextFormat("Vidas: %d", vidas_jogador), 10, 40, 20, RED); // Ajustei a posição do texto
-
-        // Se o jogo acabou, mostra a mensagem de "Game Over"
-        if (gameOver) {
-            DrawText("Game Over", LARGURA / 2 - MeasureText("Game Over", 50) / 2, ALTURA / 2 - 50, 50, RED);
-        }
-
-        EndDrawing();
     }
     // Descarregar a música e fechar a janela
     UnloadMusicStream(soundtrack);
+    UnloadMusicStream(gameover);
+    UnloadSound(dropItens);
+    UnloadSound(monstroMorre);
+    UnloadSound(pegarItens);
+
     CloseAudioDevice();
 
     CloseWindow();
